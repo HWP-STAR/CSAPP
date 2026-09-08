@@ -162,7 +162,9 @@ int getByte(int x, int n) {
  *   Rating: 3 
  */
 int logicalShift(int x, int n) {
-  return 2;
+  //思路是使用掩码来消除1
+  int mask= ~(((1 << 31)>> n) << 1);
+  return (x >> n) & mask;
 }
 /*
  * bitCount - returns count of number of 1's in word
@@ -172,7 +174,19 @@ int logicalShift(int x, int n) {
  *   Rating: 4
  */
 int bitCount(int x) {
-  return 2;
+    int mask1 = 0x55555555;
+    int mask2 = 0x33333333;
+    int mask3 = 0x0F0F0F0F;
+    int mask4 = 0x00FF00FF;
+    int mask5 = 0x0000FFFF;
+    x = (x & mask1) + ((x >> 1) & mask1);
+    x = (x & mask2) + ((x >> 2) & mask2);
+    x = (x & mask3) + ((x >> 4) & mask3);
+    x = (x & mask4) + ((x >> 8) & mask4);
+    x=(x & mask5) + ((x >> 16) & mask5);
+
+    return x;
+  
 }
 /* 
  * bang - Compute !x without using !
@@ -182,7 +196,10 @@ int bitCount(int x) {
  *   Rating: 4 
  */
 int bang(int x) {
-  return 2;
+  int neg_x=~x+1; //计算-x
+  int or_result=x | neg_x;
+  int sign= or_result >> 31; //提取符号
+  return sign +1;
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -191,7 +208,7 @@ int bang(int x) {
  *   Rating: 1
  */
 int tmin(void) {
-  return 2;
+  return 1 << 31;
 }
 /* 
  * fitsBits - return 1 if x can be represented as an 
@@ -203,7 +220,13 @@ int tmin(void) {
  *   Rating: 2
  */
 int fitsBits(int x, int n) {
-  return 2;
+  //是否可以用n位补码表示
+  int shift = n+(~1 +1); // ~ +1 就是负
+
+  int shifted= x >> shift;
+  int is_zero = !shifted;
+  int is_minus_one = !(shifted + 1);
+  return is_minus_one | is_zero;
 }
 /* 
  * divpwr2 - Compute x/(2^n), for 0 <= n <= 30
@@ -214,7 +237,11 @@ int fitsBits(int x, int n) {
  *   Rating: 2
  */
 int divpwr2(int x, int n) {
-    return 2;
+  //即正数向下取整，负数向上取整。
+    int sign = x >> 31;                // 符号位：-1 或 0
+    int bias = (1 << n) + ~0;          // (1 << n) - 1
+    bias = sign & bias;                // 如果是负数，偏置为 (1<<n)-1；否则为 0
+    return (x + bias) >> n;
 }
 /* 
  * negate - return -x 
@@ -224,7 +251,7 @@ int divpwr2(int x, int n) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  return ~x +1;
 }
 /* 
  * isPositive - return 1 if x > 0, return 0 otherwise 
@@ -234,7 +261,8 @@ int negate(int x) {
  *   Rating: 3
  */
 int isPositive(int x) {
-  return 2;
+  //x > 0  ⇔  符号位是 0 且 x != 0
+  return (!(x >> 31)) & (!!x);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
