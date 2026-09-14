@@ -272,7 +272,16 @@ int isPositive(int x) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+    int sign_x = (x >> 31) & 1;
+    int sign_y = (y >> 31) & 1;
+
+    int diff = y + ~x + 1;
+    int diff_nonneg = ((diff >> 31) & 1) ^ 1;
+
+    int same_sign = !(sign_x ^ sign_y);
+    int x_neg_y_pos = sign_x & !sign_y;
+
+    return (same_sign & diff_nonneg) | (!same_sign & x_neg_y_pos);
 }
 /*
  * ilog2 - return floor(log base 2 of x), where x > 0
@@ -282,7 +291,13 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4
  */
 int ilog2(int x) {
-  return 2;
+  //对数，x只能是正数
+  int result =0;
+  //16 bits
+  int high = !!(x >> 16); //判断高位是否有1
+  result = high <<4; //是否要移动
+  x=x >> result;
+  
 }
 /* 
  * float_neg - Return bit-level equivalent of expression -f for
@@ -294,9 +309,14 @@ int ilog2(int x) {
  *   Legal ops: Any integer/unsigned operations incl. ||, &&. also if, while
  *   Max ops: 10
  *   Rating: 2
+ 对浮点数 f 取负（即 -f），返回其位级表示
  */
 unsigned float_neg(unsigned uf) {
- return 2;
+ //判断是否NAN(指数全1,小数不是0)
+ if( ((uf >> 23)& 0xFF)==0xFF && (uf & 0x7FFFFF) != 0 ){
+  return uf;
+ }
+ return uf ^ 0x80000000; //反转最高位
 }
 /* 
  * float_i2f - Return bit-level equivalent of expression (float) x
@@ -306,9 +326,58 @@ unsigned float_neg(unsigned uf) {
  *   Legal ops: Any integer/unsigned operations incl. ||, &&. also if, while
  *   Max ops: 30
  *   Rating: 4
+ 将整数 x 转换为单精度浮点数，返回其位级表示（unsigned int）
+
  */
 unsigned float_i2f(int x) {
-  return 2;
+  unsigned sign =0;
+  unsigned exp,frac;
+  unsigned abs_x;
+  int highest_bit;
+  int shift;
+    // 特殊处理 INT_MIN，避免取绝对值时溢出
+    if (x == 0x80000000) {
+        return 0xcf000000;
+    }
+  // 0
+  if(x == 0)
+    return 0;
+  //处理符号位
+  if(x < 0){
+    sign=0x80000000;
+    abs_x=-x;
+  }else{
+    abs_x=x;
+  }
+
+  //找最高位1的position
+  highest_bit=31;
+  while(!(abs_x & (1 << highest_bit))){
+    highest_bit--;
+  }
+  exp = highest_bit+127;
+
+  //尾数
+  if(highest_bit <=23){
+    frac = (abs_x << (23 - highest_bit)) & 0x7FFFFF;
+  }else{
+        // 需要舍入
+        shift = highest_bit - 23;
+        frac = (abs_x >> shift) & 0x7FFFFF;
+        
+        // 舍入处理
+        unsigned round_bit = (abs_x >> (shift - 1)) & 1;
+        unsigned sticky = abs_x & ((1 << (shift - 1)) - 1);
+        
+        if (round_bit && (sticky || (frac & 1))) {
+            frac++;
+            if (frac == 0x800000) {  // 尾数溢出
+                frac = 0;
+                exp++;
+            }
+        }
+  }
+  return sign | (exp << 23) | frac;
 }
 /* 
  * float_twice - Return bit-level equivalent of expression 2*f for
@@ -320,7 +389,36 @@ unsigned float_i2f(int x) {
  *   Legal ops: Any integer/unsigned operations incl. ||, &&. also if, while
  *   Max ops: 30
  *   Rating: 4
+ 算 2 * f，返回其位级表示（unsigned int）。
  */
 unsigned float_twice(unsigned uf) {
-  return 2;
+    unsigned sign = uf & 0x80000000;      // 符号位
+    unsigned exp = (uf >> 23) & 0xFF;     // 指数位
+    unsigned frac = uf & 0x7FFFFF;        // 尾数位
+
+    //处理里NAN和无穷大
+    if(exp == 0xFF)
+      return uf; //返回原数值
+    // 0
+  if(exp ==0 && frac ==0)
+    return uf;
+
+    if(exp ==0){
+      //处理非格式化
+      frac = frac << 1; //frac *2
+      if(frac & 0x800000){
+        //最高位是0
+        exp =1;
+        frac= frac & 0x7FFFFF; //消除最高位
+      }
+    }else{
+      //格式化
+      exp=exp +1;
+      if(exp == 0xFF){
+        //溢出为无穷大
+        frac=0;
+      }
+    }
+    return sign | (exp << 23) | frac;
+
 }

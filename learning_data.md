@@ -80,3 +80,5 @@ ld add.o -o add
 xxd file_name #直接查看二进制可执行文件的“0/1 比特序列”
 
 # ! —— 逻辑非（Logical NOT）（对数字），~ —— 按位取反（Bitwise NOT）（对位）
+# 位运算 ^（按位异或），只有不同，才return 1
+1 是负数，0是正数，在最高位置
